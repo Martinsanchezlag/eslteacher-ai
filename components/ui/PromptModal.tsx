@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PromptCard } from "@/types";
 
 interface PromptModalProps {
@@ -10,15 +10,92 @@ interface PromptModalProps {
 
 const aiTools = [
   { name: "ChatGPT", color: "bg-green-100 text-green-700 border-green-200", icon: "🤖" },
-  { name: "Claude", color: "bg-orange-100 text-orange-700 border-orange-200", icon: "✦" },
-  { name: "Gemini", color: "bg-blue-100 text-blue-700 border-blue-200", icon: "◆" },
+  { name: "Claude",  color: "bg-orange-100 text-orange-700 border-orange-200", icon: "✦" },
+  { name: "Gemini",  color: "bg-blue-100 text-blue-700 border-blue-200", icon: "◆" },
 ] as const;
 
 type SentTo = "chatgpt" | "claude" | "gemini" | null;
 
+// Variable colours — assigned in order of appearance
+const VAR_PALETTE = [
+  { badge: "bg-rose-500",    highlight: "bg-rose-100 text-rose-700",   border: "border-rose-300",   ring: "focus:ring-rose-300"   },
+  { badge: "bg-emerald-500", highlight: "bg-emerald-100 text-emerald-700", border: "border-emerald-300", ring: "focus:ring-emerald-300" },
+  { badge: "bg-violet-500",  highlight: "bg-violet-100 text-violet-700",  border: "border-violet-300",  ring: "focus:ring-violet-300"  },
+  { badge: "bg-amber-500",   highlight: "bg-amber-100 text-amber-700",   border: "border-amber-300",   ring: "focus:ring-amber-300"   },
+  { badge: "bg-sky-500",     highlight: "bg-sky-100 text-sky-700",      border: "border-sky-300",     ring: "focus:ring-sky-300"     },
+];
+
+/** Extract unique [VARIABLE] tokens from prompt text */
+function extractVars(text: string): string[] {
+  const matches = text.match(/\[([A-Z_a-z0-9 ]+)\]/g) ?? [];
+  const unique: string[] = [];
+  matches.forEach((m) => {
+    const name = m.slice(1, -1);
+    if (!unique.includes(name)) unique.push(name);
+  });
+  return unique;
+}
+
+/** Replace [VARIABLE] tokens with filled values (or leave as-is if empty) */
+function resolvePrompt(text: string, values: Record<string, string>): string {
+  return text.replace(/\[([A-Z_a-z0-9 ]+)\]/g, (match, name) =>
+    values[name]?.trim() ? values[name].trim() : match
+  );
+}
+
+/** Render prompt text with coloured highlights for each variable */
+function PromptPreview({
+  text,
+  vars,
+  values,
+  palette,
+}: {
+  text: string;
+  vars: string[];
+  values: Record<string, string>;
+  palette: typeof VAR_PALETTE;
+}) {
+  // Split by [VARIABLE] tokens and render inline spans
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    const match = remaining.match(/\[([A-Z_a-z0-9 ]+)\]/);
+    if (!match || match.index === undefined) {
+      parts.push(<span key={key++}>{remaining}</span>);
+      break;
+    }
+    // Text before the variable
+    if (match.index > 0) {
+      parts.push(<span key={key++}>{remaining.slice(0, match.index)}</span>);
+    }
+    const varName = match[1];
+    const idx = vars.indexOf(varName);
+    const color = palette[idx % palette.length];
+    const filled = values[varName]?.trim();
+
+    parts.push(
+      <span
+        key={key++}
+        className={`rounded px-0.5 font-semibold ${filled ? color.highlight : color.highlight + " opacity-70"}`}
+      >
+        {filled ? filled : `[${varName}]`}
+      </span>
+    );
+    remaining = remaining.slice(match.index + match[0].length);
+  }
+
+  return (
+    <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+      {parts}
+    </pre>
+  );
+}
+
 function sendToAI(fullPrompt: string, tool: NonNullable<SentTo>) {
   navigator.clipboard.writeText(fullPrompt).catch(() => {});
-  const urls = {
+  const urls: Record<NonNullable<SentTo>, string> = {
     chatgpt: "https://chatgpt.com/",
     claude:  "https://claude.ai/new",
     gemini:  "https://gemini.google.com/app",
@@ -30,26 +107,36 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [sentTo, setSentTo] = useState<SentTo>(null);
+  const [varValues, setVarValues] = useState<Record<string, string>>({});
 
-  function handleSendTo(tool: NonNullable<SentTo>) {
-    sendToAI(prompt!.fullPrompt, tool);
-    setSentTo(tool);
-    setTimeout(() => setSentTo(null), 3000);
-  }
+  // Extract variables whenever prompt changes
+  const vars = useMemo(
+    () => (prompt ? extractVars(prompt.fullPrompt) : []),
+    [prompt]
+  );
 
+  // Reset variable values when prompt changes
   useEffect(() => {
     if (prompt) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      const initial: Record<string, string> = {};
+      extractVars(prompt.fullPrompt).forEach((v) => (initial[v] = ""));
+      setVarValues(initial);
     }
+  }, [prompt]);
+
+  // Resolved prompt (variables substituted)
+  const resolvedPrompt = useMemo(
+    () => (prompt ? resolvePrompt(prompt.fullPrompt, varValues) : ""),
+    [prompt, varValues]
+  );
+
+  useEffect(() => {
+    document.body.style.overflow = prompt ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [prompt]);
 
   useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
@@ -57,10 +144,18 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   if (!prompt) return null;
 
   function handleCopy() {
-    navigator.clipboard.writeText(prompt!.fullPrompt).catch(() => {});
+    navigator.clipboard.writeText(resolvedPrompt).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  function handleSendTo(tool: NonNullable<SentTo>) {
+    sendToAI(resolvedPrompt, tool);
+    setSentTo(tool);
+    setTimeout(() => setSentTo(null), 3000);
+  }
+
+  const allFilled = vars.length > 0 && vars.every((v) => varValues[v]?.trim());
 
   return (
     <div
@@ -117,6 +212,58 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 p-5 space-y-5">
+
+          {/* ── Variable inputs ── shown only when prompt has [VARIABLES] */}
+          {vars.length > 0 && (
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <p className="text-xs font-bold text-primary uppercase tracking-wide">
+                  Customise this prompt
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {vars.map((varName, idx) => {
+                  const color = VAR_PALETTE[idx % VAR_PALETTE.length];
+                  return (
+                    <div key={varName}>
+                      <label className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-xs font-bold text-white px-2.5 py-0.5 rounded-full ${color.badge}`}>
+                          [{varName}]
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {varValues[varName]?.trim() ? "✓ filled" : "fill in below"}
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={`Enter ${varName.toLowerCase()}…`}
+                        value={varValues[varName] ?? ""}
+                        onChange={(e) =>
+                          setVarValues((prev) => ({ ...prev, [varName]: e.target.value }))
+                        }
+                        className={`w-full text-sm border rounded-xl px-3 py-2.5 outline-none focus:ring-2 transition-all bg-white placeholder:text-gray-300 ${color.border} ${color.ring}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Fill progress hint */}
+              <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Fill in the fields above — the prompt preview updates live.
+              </p>
+            </div>
+          )}
+
           {/* Works with */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Works with</p>
@@ -137,13 +284,42 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             </div>
           </div>
 
-          {/* Prompt text */}
+          {/* Prompt text — live preview with variable highlights */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Prompt</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                {vars.length > 0 ? "Prompt preview" : "Prompt"}
+              </p>
+              {vars.length > 0 && !allFilled && (
+                <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  Fill variables to complete
+                </span>
+              )}
+              {allFilled && (
+                <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Ready to use!
+                </span>
+              )}
+            </div>
             <div className="relative">
-              <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
-                {prompt.fullPrompt}
-              </pre>
+              {vars.length > 0 ? (
+                <PromptPreview
+                  text={prompt.fullPrompt}
+                  vars={vars}
+                  values={varValues}
+                  palette={VAR_PALETTE}
+                />
+              ) : (
+                <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                  {prompt.fullPrompt}
+                </pre>
+              )}
               <button
                 onClick={handleCopy}
                 className={`absolute top-3 right-3 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-200 ${
@@ -164,7 +340,7 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    Copy prompt
+                    Copy
                   </>
                 )}
               </button>
@@ -219,7 +395,7 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
           </div>
         </div>
 
-        {/* Footer — Use prompt actions */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide text-center mb-3">
             Use this prompt in
@@ -230,7 +406,6 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             onClick={() => handleSendTo("chatgpt")}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all duration-200 bg-[#10a37f] hover:bg-[#0d8a6c] text-white active:scale-[0.98]"
           >
-            {/* ChatGPT logo */}
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.032.067L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.843-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
             </svg>
@@ -242,14 +417,13 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             onClick={() => handleSendTo("claude")}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all duration-200 bg-[#D97757] hover:bg-[#c4613d] text-white active:scale-[0.98]"
           >
-            {/* Claude logo mark */}
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
             </svg>
             {sentTo === "claude" ? "Copied! Paste it in Claude →" : "Send to Claude"}
           </button>
 
-          {/* Copy prompt only */}
+          {/* Copy only */}
           <button
             onClick={handleCopy}
             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border ${
