@@ -46,7 +46,7 @@ export default function HomePage({ prompts, tutorials, news, banners, customGpts
             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
             Free to browse — no account needed
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight mb-3 text-primary-dark">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-3 text-primary-dark">
             The AI prompt library for{" "}
             <span
               style={{ background: "linear-gradient(90deg, #5B56EB 0%, #BB63FF 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}

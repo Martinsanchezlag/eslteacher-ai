@@ -60,7 +60,7 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
 
   return (
     <section className="mb-8">
-      <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: "260px" }}>
+      <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: "200px" }}>
 
         {/* Background photo (optional) */}
         {banner.backgroundImage && (
@@ -97,21 +97,21 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
 
         {/* Content */}
         <div
-          className="relative z-10 flex flex-col lg:flex-row items-center gap-6 p-7 lg:p-10 transition-opacity duration-250"
+          className="relative z-10 flex flex-row items-center gap-4 p-5 sm:p-7 lg:p-10 transition-opacity duration-250"
           style={{ opacity: fading ? 0 : 1 }}
         >
-          {/* Emoji */}
-          <div className="text-6xl lg:text-7xl flex-shrink-0 select-none">{banner.emoji}</div>
+          {/* Emoji — hidden on very small phones */}
+          <div className="hidden sm:block text-5xl lg:text-7xl flex-shrink-0 select-none">{banner.emoji}</div>
 
           {/* Text */}
           <div className="flex-1 text-center lg:text-left">
-            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-3 ${tagClass}`}>
+            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-2 ${tagClass}`}>
               {banner.tag}
             </span>
-            <h2 className="text-xl lg:text-2xl xl:text-3xl font-extrabold text-white leading-snug mb-2">
+            <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-extrabold text-white leading-snug mb-1.5">
               {banner.title}
             </h2>
-            <p className="text-white/75 text-sm lg:text-base leading-relaxed max-w-2xl">
+            <p className="text-white/75 text-xs sm:text-sm lg:text-base leading-relaxed max-w-2xl hidden sm:block">
               {banner.description}
             </p>
           </div>
@@ -121,7 +121,7 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
             <a
               href={banner.promptId ? "#prompts" : banner.ctaUrl}
               onClick={handleCtaClick}
-              className="inline-flex items-center gap-2 bg-white text-primary font-bold px-6 py-3 rounded-xl hover:bg-cyan hover:text-navy transition-all duration-200 shadow-md text-sm whitespace-nowrap"
+              className="inline-flex items-center gap-2 bg-white text-primary font-bold px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl hover:bg-cyan hover:text-navy transition-all duration-200 shadow-md text-sm whitespace-nowrap"
             >
               {banner.ctaText}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
