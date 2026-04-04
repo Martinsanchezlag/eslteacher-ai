@@ -1,0 +1,7 @@
+{
+  "/tutorials/page": "app/tutorials/page.js",
+  "/ai-in-elt/page": "app/ai-in-elt/page.js",
+  "/ai-in-elt/[id]/page": "app/ai-in-elt/[id]/page.js",
+  "/page": "app/page.js",
+  "/tutorials/[id]/page": "app/tutorials/[id]/page.js"
+}
