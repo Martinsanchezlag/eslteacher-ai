@@ -99,23 +99,21 @@ function InlinePrompt({
   );
 }
 
-function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text);
-  }
-  // Fallback for browsers that block clipboard API
-  return new Promise((resolve) => {
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.style.position = "fixed";
-    el.style.opacity = "0";
-    document.body.appendChild(el);
-    el.focus();
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    resolve();
-  });
+/** Synchronous copy — must stay sync so user-gesture is still active when window.open() fires */
+function copySync(text: string) {
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.style.position = "fixed";
+  el.style.left = "-9999px";
+  el.style.top = "-9999px";
+  el.setAttribute("readonly", "");
+  document.body.appendChild(el);
+  el.select();
+  el.setSelectionRange(0, text.length);
+  document.execCommand("copy");
+  document.body.removeChild(el);
+  // Also try the async API in the background as a belt-and-suspenders measure
+  navigator.clipboard?.writeText(text).catch(() => {});
 }
 
 const AI_URLS: Record<NonNullable<SentTo>, string> = {
@@ -163,17 +161,17 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
 
   if (!prompt) return null;
 
-  async function handleCopy() {
-    await copyToClipboard(resolvedPrompt).catch(() => {});
+  function handleCopy() {
+    copySync(resolvedPrompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleSendTo(tool: NonNullable<SentTo>) {
-    await copyToClipboard(resolvedPrompt).catch(() => {});
+  function handleSendTo(tool: NonNullable<SentTo>) {
+    copySync(resolvedPrompt);           // copy first — still inside user gesture
+    window.open(AI_URLS[tool], "_blank", "noopener,noreferrer"); // open immediately after
     setSentTo(tool);
     setTimeout(() => setSentTo(null), 3000);
-    window.open(AI_URLS[tool], "_blank", "noopener,noreferrer");
   }
 
   function handleVarChange(name: string, val: string) {
