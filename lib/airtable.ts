@@ -59,14 +59,20 @@ function mapPrompt(record: Record<string, unknown>): PromptCard {
     airtableId: String(record.id ?? ""),   // always store Airtable's rec... ID for API updates
     title: String(g("Title", "title") ?? ""),
     preview: String(g("Preview", "preview") ?? ""),
-    fullPrompt: String(g("fullPrompt", "Full Prompt") ?? ""),
+    fullPrompt: String(
+      f["fullPrompt"] ?? f["Full Prompt"] ?? f["FullPrompt"] ?? f["Prompt"] ?? f["prompt"] ?? f["Full prompt"] ?? ""
+    ),
     category: String(g("Category", "category") ?? ""),
     level: String(g("Level", "level") ?? ""),
     time: String(g("Time", "time") ?? ""),
     tags: Array.isArray(tagsRaw) ? (tagsRaw as string[]) : [],
     likes: typeof g("Likes", "likes") === "number" ? (g("Likes", "likes") as number) : 0,
-    exampleOutput: String(g("ExampleOutput", "exampleOutput") ?? ""),
-    classroomUse: String(g("ClassroomUse", "classroomUse") ?? ""),
+    exampleOutput: String(
+      f["ExampleOutput"] ?? f["exampleOutput"] ?? f["Example Output"] ?? f["Example output"] ?? ""
+    ),
+    classroomUse: String(
+      f["ClassroomUse"] ?? f["classroomUse"] ?? f["Classroom Use"] ?? f["Classroom use"] ?? f["How to use"] ?? ""
+    ),
     variations:
       typeof variationsRaw === "string" && (variationsRaw as string).trim()
         ? (variationsRaw as string).split(/\r?\n/).filter((v) => v.trim() !== "")

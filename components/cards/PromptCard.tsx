@@ -58,10 +58,22 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(prompt.likes);
   const [copied, setCopied] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [imgSrc, setImgSrc] = useState(
+    prompt.thumbnail || categoryImages[prompt.category] || ""
+  );
+  const [imgFailed, setImgFailed] = useState(false);
 
   const categoryClass = categoryColors[prompt.category] ?? "bg-gray-100 text-gray-600";
-  const imageUrl = prompt.thumbnail || categoryImages[prompt.category];
+
+  function handleImgError() {
+    // If thumbnail failed, try the category fallback image
+    const fallback = categoryImages[prompt.category];
+    if (fallback && imgSrc !== fallback) {
+      setImgSrc(fallback);
+    } else {
+      setImgFailed(true);
+    }
+  }
 
   // Restore liked state from localStorage on mount (avoids SSR mismatch)
   useEffect(() => {
@@ -116,16 +128,16 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
     >
       {/* Photo thumbnail */}
       <div className="relative h-44 overflow-hidden bg-gray-100 flex-shrink-0">
-        {imageUrl && !imgError ? (
+        {imgSrc && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={imageUrl}
+            src={imgSrc}
             alt={prompt.category}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={() => setImgError(true)}
+            onError={handleImgError}
           />
         ) : (
-          // Gradient fallback if image fails to load
+          // Gradient fallback only if all images fail
           <div
             className="w-full h-full flex items-center justify-center"
             style={{ background: "linear-gradient(135deg, #112C70 0%, #5B56EB 100%)" }}
