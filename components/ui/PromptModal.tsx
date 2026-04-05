@@ -99,15 +99,30 @@ function InlinePrompt({
   );
 }
 
-function sendToAI(fullPrompt: string, tool: NonNullable<SentTo>) {
-  navigator.clipboard.writeText(fullPrompt).catch(() => {});
-  const urls: Record<NonNullable<SentTo>, string> = {
-    chatgpt: "https://chatgpt.com/",
-    claude:  "https://claude.ai/new",
-    gemini:  "https://gemini.google.com/app",
-  };
-  window.open(urls[tool], "_blank", "noopener,noreferrer");
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  // Fallback for browsers that block clipboard API
+  return new Promise((resolve) => {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+    resolve();
+  });
 }
+
+const AI_URLS: Record<NonNullable<SentTo>, string> = {
+  chatgpt: "https://chatgpt.com/",
+  claude:  "https://claude.ai/new",
+  gemini:  "https://gemini.google.com/app",
+};
 
 export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   const [copied, setCopied] = useState(false);
@@ -148,16 +163,17 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
 
   if (!prompt) return null;
 
-  function handleCopy() {
-    navigator.clipboard.writeText(resolvedPrompt).catch(() => {});
+  async function handleCopy() {
+    await copyToClipboard(resolvedPrompt).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleSendTo(tool: NonNullable<SentTo>) {
-    sendToAI(resolvedPrompt, tool);
+  async function handleSendTo(tool: NonNullable<SentTo>) {
+    await copyToClipboard(resolvedPrompt).catch(() => {});
     setSentTo(tool);
     setTimeout(() => setSentTo(null), 3000);
+    window.open(AI_URLS[tool], "_blank", "noopener,noreferrer");
   }
 
   function handleVarChange(name: string, val: string) {
