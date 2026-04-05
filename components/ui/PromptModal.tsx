@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { PromptCard } from "@/types";
 
 interface PromptModalProps {
@@ -16,16 +16,14 @@ const aiTools = [
 
 type SentTo = "chatgpt" | "claude" | "gemini" | null;
 
-// Variable colours — assigned in order of appearance
 const VAR_PALETTE = [
-  { badge: "bg-rose-500",    highlight: "bg-rose-100 text-rose-700",   border: "border-rose-300",   ring: "focus:ring-rose-300"   },
-  { badge: "bg-emerald-500", highlight: "bg-emerald-100 text-emerald-700", border: "border-emerald-300", ring: "focus:ring-emerald-300" },
-  { badge: "bg-violet-500",  highlight: "bg-violet-100 text-violet-700",  border: "border-violet-300",  ring: "focus:ring-violet-300"  },
-  { badge: "bg-amber-500",   highlight: "bg-amber-100 text-amber-700",   border: "border-amber-300",   ring: "focus:ring-amber-300"   },
-  { badge: "bg-sky-500",     highlight: "bg-sky-100 text-sky-700",      border: "border-sky-300",     ring: "focus:ring-sky-300"     },
+  { pill: "bg-rose-500",    input: "bg-rose-50 text-rose-800 border-rose-300 placeholder:text-rose-300 focus:ring-rose-300"   },
+  { pill: "bg-emerald-500", input: "bg-emerald-50 text-emerald-800 border-emerald-300 placeholder:text-emerald-300 focus:ring-emerald-300" },
+  { pill: "bg-violet-500",  input: "bg-violet-50 text-violet-800 border-violet-300 placeholder:text-violet-300 focus:ring-violet-300"  },
+  { pill: "bg-amber-500",   input: "bg-amber-50 text-amber-800 border-amber-300 placeholder:text-amber-300 focus:ring-amber-300"   },
+  { pill: "bg-sky-500",     input: "bg-sky-50 text-sky-800 border-sky-300 placeholder:text-sky-300 focus:ring-sky-300"     },
 ];
 
-/** Extract unique [VARIABLE] tokens from prompt text */
 function extractVars(text: string): string[] {
   const matches = text.match(/\[([A-Z_a-z0-9 ]+)\]/g) ?? [];
   const unique: string[] = [];
@@ -36,26 +34,27 @@ function extractVars(text: string): string[] {
   return unique;
 }
 
-/** Replace [VARIABLE] tokens with filled values (or leave as-is if empty) */
 function resolvePrompt(text: string, values: Record<string, string>): string {
   return text.replace(/\[([A-Z_a-z0-9 ]+)\]/g, (match, name) =>
     values[name]?.trim() ? values[name].trim() : match
   );
 }
 
-/** Render prompt text with coloured highlights for each variable */
-function PromptPreview({
+/**
+ * Renders prompt text with [VARIABLE] placeholders as inline input fields.
+ * Teachers type directly into the prompt — no separate form needed.
+ */
+function InlinePrompt({
   text,
   vars,
   values,
-  palette,
+  onChange,
 }: {
   text: string;
   vars: string[];
   values: Record<string, string>;
-  palette: typeof VAR_PALETTE;
+  onChange: (name: string, val: string) => void;
 }) {
-  // Split by [VARIABLE] tokens and render inline spans
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -63,33 +62,40 @@ function PromptPreview({
   while (remaining.length > 0) {
     const match = remaining.match(/\[([A-Z_a-z0-9 ]+)\]/);
     if (!match || match.index === undefined) {
-      parts.push(<span key={key++}>{remaining}</span>);
+      parts.push(<span key={key++} className="whitespace-pre-wrap">{remaining}</span>);
       break;
     }
-    // Text before the variable
     if (match.index > 0) {
-      parts.push(<span key={key++}>{remaining.slice(0, match.index)}</span>);
+      parts.push(<span key={key++} className="whitespace-pre-wrap">{remaining.slice(0, match.index)}</span>);
     }
+
     const varName = match[1];
     const idx = vars.indexOf(varName);
-    const color = palette[idx % palette.length];
-    const filled = values[varName]?.trim();
+    const color = VAR_PALETTE[idx % VAR_PALETTE.length];
+    const val = values[varName] ?? "";
+    // Estimate input width based on placeholder or current value
+    const displayLen = Math.max(varName.length + 2, val.length + 1, 8);
 
     parts.push(
-      <span
+      <input
         key={key++}
-        className={`rounded px-0.5 font-semibold ${filled ? color.highlight : color.highlight + " opacity-70"}`}
-      >
-        {filled ? filled : `[${varName}]`}
-      </span>
+        type="text"
+        value={val}
+        placeholder={varName.toLowerCase()}
+        onChange={(e) => onChange(varName, e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: `${displayLen}ch` }}
+        className={`inline-block align-baseline mx-0.5 px-1.5 py-0 text-sm font-semibold rounded border focus:outline-none focus:ring-2 transition-all ${color.input}`}
+      />
     );
+
     remaining = remaining.slice(match.index + match[0].length);
   }
 
   return (
-    <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-[2] break-words">
       {parts}
-    </pre>
+    </div>
   );
 }
 
@@ -109,13 +115,11 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   const [sentTo, setSentTo] = useState<SentTo>(null);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
 
-  // Extract variables whenever prompt changes
   const vars = useMemo(
     () => (prompt ? extractVars(prompt.fullPrompt) : []),
     [prompt]
   );
 
-  // Reset variable values when prompt changes
   useEffect(() => {
     if (prompt) {
       const initial: Record<string, string> = {};
@@ -124,11 +128,12 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
     }
   }, [prompt]);
 
-  // Resolved prompt (variables substituted)
   const resolvedPrompt = useMemo(
     () => (prompt ? resolvePrompt(prompt.fullPrompt, varValues) : ""),
     [prompt, varValues]
   );
+
+  const allFilled = vars.length > 0 && vars.every((v) => varValues[v]?.trim());
 
   useEffect(() => {
     document.body.style.overflow = prompt ? "hidden" : "";
@@ -155,17 +160,17 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
     setTimeout(() => setSentTo(null), 3000);
   }
 
-  const allFilled = vars.length > 0 && vars.every((v) => varValues[v]?.trim());
+  function handleVarChange(name: string, val: string) {
+    setVarValues((prev) => ({ ...prev, [name]: val }));
+  }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-navy/60 backdrop-blur-sm" />
 
-      {/* Modal */}
       <div
         className="relative bg-white w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-modal flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -193,16 +198,12 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             <button
               onClick={() => setSaved((v) => !v)}
               className={`p-2 rounded-xl transition-all duration-200 ${saved ? "bg-accent/10 text-accent" : "bg-gray-100 text-gray-400 hover:text-accent hover:bg-accent/10"}`}
-              title="Save prompt"
             >
               <svg className="w-4 h-4" fill={saved ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
             </button>
-            <button
-              onClick={onClose}
-              className="p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-xl transition-colors"
-            >
+            <button onClick={onClose} className="p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-xl transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -212,57 +213,6 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 p-5 space-y-5">
-
-          {/* ── Variable inputs ── shown only when prompt has [VARIABLES] */}
-          {vars.length > 0 && (
-            <div className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 rounded-2xl p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <p className="text-xs font-bold text-primary uppercase tracking-wide">
-                  Customise this prompt
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {vars.map((varName, idx) => {
-                  const color = VAR_PALETTE[idx % VAR_PALETTE.length];
-                  return (
-                    <div key={varName}>
-                      <label className="flex items-center gap-2 mb-1.5">
-                        <span className={`text-xs font-bold text-white px-2.5 py-0.5 rounded-full ${color.badge}`}>
-                          [{varName}]
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {varValues[varName]?.trim() ? "✓ filled" : "fill in below"}
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={`Enter ${varName.toLowerCase()}…`}
-                        value={varValues[varName] ?? ""}
-                        onChange={(e) =>
-                          setVarValues((prev) => ({ ...prev, [varName]: e.target.value }))
-                        }
-                        className={`w-full text-sm border rounded-xl px-3 py-2.5 outline-none focus:ring-2 transition-all bg-white placeholder:text-gray-300 ${color.border} ${color.ring}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Fill progress hint */}
-              <p className="text-xs text-gray-400 flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Fill in the fields above — the prompt preview updates live.
-              </p>
-            </div>
-          )}
 
           {/* Works with */}
           <div>
@@ -277,96 +227,101 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
                       : "bg-gray-50 text-gray-300 border-gray-100"
                   }`}
                 >
-                  <span>{tool.icon}</span>
-                  {tool.name}
+                  <span>{tool.icon}</span>{tool.name}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* Prompt text — live preview with variable highlights */}
+          {/* ── Prompt section ── */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {vars.length > 0 ? "Prompt preview" : "Prompt"}
-              </p>
-              {vars.length > 0 && !allFilled && (
-                <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  </svg>
-                  Fill variables to complete
-                </span>
-              )}
-              {allFilled && (
-                <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Ready to use!
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              {vars.length > 0 ? (
-                <PromptPreview
-                  text={prompt.fullPrompt}
-                  vars={vars}
-                  values={varValues}
-                  palette={VAR_PALETTE}
-                />
-              ) : (
-                <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
-                  {prompt.fullPrompt}
-                </pre>
-              )}
-              <button
-                onClick={handleCopy}
-                className={`absolute top-3 right-3 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                  copied
-                    ? "bg-green-100 text-green-700"
-                    : "bg-white text-primary border border-primary/20 hover:bg-primary hover:text-white shadow-sm"
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy
-                  </>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prompt</p>
+                {/* Variable legend pills */}
+                {vars.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {vars.map((v, i) => (
+                      <span
+                        key={v}
+                        className={`text-xs font-bold text-white px-2 py-0.5 rounded-full ${VAR_PALETTE[i % VAR_PALETTE.length].pill}`}
+                      >
+                        {v.toLowerCase()}
+                      </span>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {vars.length > 0 && (
+                  <span className={`text-xs font-medium flex items-center gap-1 ${allFilled ? "text-emerald-600" : "text-amber-500"}`}>
+                    {allFilled ? (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Ready!
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Fill in the coloured fields
+                      </>
+                    )}
+                  </span>
+                )}
+                <button
+                  onClick={handleCopy}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-200 ${
+                    copied ? "bg-green-100 text-green-700" : "bg-white text-primary border border-primary/20 hover:bg-primary hover:text-white shadow-sm"
+                  }`}
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
             </div>
+
+            {/* Inline editable prompt OR plain text */}
+            {vars.length > 0 ? (
+              <InlinePrompt
+                text={prompt.fullPrompt}
+                vars={vars}
+                values={varValues}
+                onChange={handleVarChange}
+              />
+            ) : (
+              <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                {prompt.fullPrompt}
+              </pre>
+            )}
           </div>
 
           {/* Example output */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Example output</p>
-            <div className="bg-cyan/10 border border-cyan/30 rounded-xl p-4">
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{prompt.exampleOutput}</p>
+          {prompt.exampleOutput && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Example output</p>
+              <div className="bg-cyan/10 border border-cyan/30 rounded-xl p-4">
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{prompt.exampleOutput}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Classroom use */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">How to use in class</p>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+          {prompt.classroomUse && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">How to use in class</p>
+              <div className="flex gap-3">
+                <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">{prompt.classroomUse}</p>
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{prompt.classroomUse}</p>
             </div>
-          </div>
+          )}
 
           {/* Variations */}
           {prompt.variations && prompt.variations.length > 0 && (
@@ -401,7 +356,6 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             Use this prompt in
           </p>
 
-          {/* Send to ChatGPT */}
           <button
             onClick={() => handleSendTo("chatgpt")}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all duration-200 bg-[#10a37f] hover:bg-[#0d8a6c] text-white active:scale-[0.98]"
@@ -412,7 +366,6 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             {sentTo === "chatgpt" ? "Copied! Paste it in ChatGPT →" : "Send to ChatGPT"}
           </button>
 
-          {/* Send to Claude */}
           <button
             onClick={() => handleSendTo("claude")}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all duration-200 bg-[#D97757] hover:bg-[#c4613d] text-white active:scale-[0.98]"
@@ -423,29 +376,16 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
             {sentTo === "claude" ? "Copied! Paste it in Claude →" : "Send to Claude"}
           </button>
 
-          {/* Copy only */}
           <button
             onClick={handleCopy}
             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border ${
-              copied
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary"
+              copied ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary"
             }`}
           >
             {copied ? (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Copied to clipboard!
-              </>
+              <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied to clipboard!</>
             ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy prompt only
-              </>
+              <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy prompt only</>
             )}
           </button>
         </div>
