@@ -61,6 +61,7 @@ export interface Collection {
   description: string;
   promptCount: number;
   color: string;
+  category?: string; // Optional category to pre-filter /prompts page
 }
 
 export interface TrendingPrompt {

@@ -129,14 +129,14 @@ export default function HomePage({ prompts, tutorials, news, banners, customGpts
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { title: "Beginner AI Kit", count: 10, color: "#56E1E9" },
-              { title: "IELTS Prep Pack", count: 12, color: "#BB63FF" },
-              { title: "Writing Boosters", count: 8, color: "#5B56EB" },
-              { title: "Grammar Essentials", count: 9, color: "#112C70" },
+              { title: "Beginner AI Kit", count: 10, color: "#56E1E9", category: "All" },
+              { title: "IELTS Prep Pack", count: 12, color: "#BB63FF", category: "IELTS" },
+              { title: "Writing Boosters", count: 8, color: "#5B56EB", category: "Writing" },
+              { title: "Grammar Essentials", count: 9, color: "#112C70", category: "Grammar" },
             ].map((col) => (
               <a
                 key={col.title}
-                href="#"
+                href={`/prompts?category=${encodeURIComponent(col.category)}`}
                 className="bg-white rounded-xl p-3 border border-gray-100 shadow-card hover:shadow-card-hover transition-all duration-200"
                 style={{ borderLeft: `4px solid ${col.color}` }}
               >

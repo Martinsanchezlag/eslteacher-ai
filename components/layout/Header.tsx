@@ -42,7 +42,7 @@ export default function Header({ searchQuery = "", onSearchChange }: HeaderProps
 
           {/* Nav links — desktop */}
           <nav className="hidden lg:flex items-center gap-1 ml-auto">
-            <a href="#prompts" className="text-sm font-medium text-gray-600 hover:text-primary px-3 py-2 rounded-lg hover:bg-primary/5 transition-all">
+            <a href="/prompts" className="text-sm font-medium text-gray-600 hover:text-primary px-3 py-2 rounded-lg hover:bg-primary/5 transition-all">
               Prompts
             </a>
             <a href="/tutorials" className="text-sm font-medium text-gray-600 hover:text-primary px-3 py-2 rounded-lg hover:bg-primary/5 transition-all">
@@ -95,7 +95,7 @@ export default function Header({ searchQuery = "", onSearchChange }: HeaderProps
         {menuOpen && (
           <div className="lg:hidden border-t border-gray-100 py-3 flex flex-col gap-1">
             <a
-              href="#prompts"
+              href="/prompts"
               onClick={() => setMenuOpen(false)}
               className="text-sm font-medium text-gray-700 hover:text-primary px-3 py-3 rounded-lg hover:bg-primary/5 transition-all"
             >

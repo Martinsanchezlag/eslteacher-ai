@@ -62,7 +62,7 @@ export default function Sidebar({ onPromptClick, allPrompts }: SidebarProps) {
             {collections.map((col) => (
               <li key={col.id}>
                 <a
-                  href="#"
+                  href={`/prompts?category=${encodeURIComponent(col.category ?? "All")}`}
                   className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
                 >
                   <div

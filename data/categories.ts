@@ -24,6 +24,7 @@ export const collections: Collection[] = [
     description: "10 prompts for teachers just starting out with AI. No experience needed.",
     promptCount: 10,
     color: "#56E1E9",
+    category: "All",
   },
   {
     id: "c2",
@@ -31,6 +32,7 @@ export const collections: Collection[] = [
     description: "Everything you need to teach Writing, Speaking, Reading and Listening for IELTS.",
     promptCount: 12,
     color: "#BB63FF",
+    category: "IELTS",
   },
   {
     id: "c3",
@@ -38,6 +40,7 @@ export const collections: Collection[] = [
     description: "Scaffolds, feedback generators, and task designers for every writing type.",
     promptCount: 8,
     color: "#5B56EB",
+    category: "Writing",
   },
   {
     id: "c4",
@@ -45,6 +48,7 @@ export const collections: Collection[] = [
     description: "Error correction, conditionals, tense revision, and more — all ready to use.",
     promptCount: 9,
     color: "#112C70",
+    category: "Grammar",
   },
 ];
 
