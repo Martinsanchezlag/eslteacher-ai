@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PromptCard } from "@/types";
 
 interface PromptModalProps {
@@ -171,6 +171,7 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [sentTo, setSentTo] = useState<SentTo>(null);
+  const [lightbox, setLightbox] = useState(false);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
 
   const vars = useMemo(
@@ -229,6 +230,7 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
@@ -365,19 +367,31 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
                 )}
               </div>
 
-              {/* Thumbnail preview — shown when prompt has an image (e.g. design/poster prompts) */}
+              {/* Thumbnail preview — shown when prompt has an image */}
               {prompt.thumbnail && (
                 <div className="sm:w-52 flex-shrink-0 flex flex-col items-center gap-2">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide self-start">Preview</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={prompt.thumbnail}
-                    alt={prompt.title}
-                    className="w-full rounded-xl border border-gray-200 object-contain shadow-sm cursor-zoom-in"
-                    onClick={() => window.open(prompt.thumbnail, "_blank")}
-                    title="Click to open full size"
-                  />
-                  <p className="text-xs text-gray-400 text-center">Click to open full size</p>
+                  <div
+                    className="relative w-full group cursor-zoom-in"
+                    onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={prompt.thumbnail}
+                      alt={prompt.title}
+                      className="w-full rounded-xl border border-gray-200 object-contain shadow-sm transition-transform duration-200 group-hover:scale-[1.02]"
+                    />
+                    {/* Zoom hint overlay */}
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                        Zoom in
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 text-center">Click image to zoom</p>
                 </div>
               )}
             </div>
@@ -502,5 +516,36 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
         </div>
       </div>
     </div>
+
+    {/* ── Lightbox — full-screen image zoom, stays on page ── */}
+    {lightbox && prompt.thumbnail && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        onClick={() => setLightbox(false)}
+      >
+        <div
+          className="relative max-w-3xl w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute -top-4 -right-4 z-10 bg-white text-gray-800 rounded-full w-9 h-9 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={prompt.thumbnail}
+            alt={prompt.title}
+            className="w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+          />
+          <p className="text-white/70 text-xs text-center mt-3">{prompt.title} — tap outside or ✕ to close</p>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
