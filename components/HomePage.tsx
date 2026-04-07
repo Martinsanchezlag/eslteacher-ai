@@ -47,7 +47,7 @@ export default function HomePage({ prompts, tutorials, news, banners, customGpts
             Free to browse — no account needed
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-3 text-primary-dark">
-            The AI prompt library for{" "}
+            The AI hub for{" "}
             <span
               style={{ background: "linear-gradient(90deg, #5B56EB 0%, #BB63FF 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
             >
