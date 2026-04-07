@@ -347,19 +347,40 @@ export default function PromptModal({ prompt, onClose }: PromptModalProps) {
               </div>
             </div>
 
-            {/* Inline editable prompt OR plain text */}
-            {vars.length > 0 ? (
-              <InlinePrompt
-                text={prompt.fullPrompt}
-                vars={vars}
-                values={varValues}
-                onChange={handleVarChange}
-              />
-            ) : (
-              <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
-                {prompt.fullPrompt}
-              </pre>
-            )}
+            {/* Prompt text + optional image preview side by side */}
+            <div className={`flex gap-4 ${prompt.thumbnail ? "flex-col sm:flex-row items-start" : ""}`}>
+              {/* Prompt text */}
+              <div className="flex-1 min-w-0">
+                {vars.length > 0 ? (
+                  <InlinePrompt
+                    text={prompt.fullPrompt}
+                    vars={vars}
+                    values={varValues}
+                    onChange={handleVarChange}
+                  />
+                ) : (
+                  <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                    {prompt.fullPrompt}
+                  </pre>
+                )}
+              </div>
+
+              {/* Thumbnail preview — shown when prompt has an image (e.g. design/poster prompts) */}
+              {prompt.thumbnail && (
+                <div className="sm:w-52 flex-shrink-0 flex flex-col items-center gap-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide self-start">Preview</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={prompt.thumbnail}
+                    alt={prompt.title}
+                    className="w-full rounded-xl border border-gray-200 object-contain shadow-sm cursor-zoom-in"
+                    onClick={() => window.open(prompt.thumbnail, "_blank")}
+                    title="Click to open full size"
+                  />
+                  <p className="text-xs text-gray-400 text-center">Click to open full size</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Example output */}
