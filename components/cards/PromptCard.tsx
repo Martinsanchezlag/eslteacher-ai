@@ -124,6 +124,7 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
   }
 
   return (
+    <>
     <div
       onClick={() => onClick(prompt)}
       className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-200 cursor-pointer border border-gray-100 flex flex-col"
@@ -271,5 +272,6 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
           document.body
         )
       }
+    </>
   );
 }
