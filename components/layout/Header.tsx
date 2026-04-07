@@ -49,16 +49,7 @@ export default function Header({ searchQuery = "", onSearchChange }: HeaderProps
               Tutorials
             </a>
             <a href="/ai-in-elt" className="text-sm font-medium text-gray-600 hover:text-primary px-3 py-2 rounded-lg hover:bg-primary/5 transition-all">
-              AI in ELT
-            </a>
-            <a
-              href="#"
-              className="ml-2 inline-flex items-center gap-1.5 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm"
-            >
-              Get started
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-              </svg>
+              AI in ESL
             </a>
           </nav>
 
@@ -113,19 +104,8 @@ export default function Header({ searchQuery = "", onSearchChange }: HeaderProps
               onClick={() => setMenuOpen(false)}
               className="text-sm font-medium text-gray-700 hover:text-primary px-3 py-3 rounded-lg hover:bg-primary/5 transition-all"
             >
-              AI in ELT
+              AI in ESL
             </a>
-            <div className="pt-2 px-3">
-              <a
-                href="#"
-                className="flex items-center justify-center gap-1.5 bg-primary text-white text-sm font-semibold px-4 py-3 rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm w-full"
-              >
-                Get started
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
-            </div>
           </div>
         )}
       </div>
