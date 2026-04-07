@@ -127,14 +127,30 @@ function mapTutorial(record: Record<string, unknown>): TutorialCard {
   const body = g("Body", "body");
   const videoUrl = g("VideoUrl", "videoUrl");
 
+  // Title — try all naming variants used in Airtable
+  const titleRaw =
+    f["Title"] ?? f["title"] ?? f["Video_title"] ?? f["video_title"] ??
+    f["VideoTitle"] ?? f["video title"] ?? f["Video Title"] ?? "";
+
+  // Description — try dedicated field first, then fall back to first sentence of Body
+  const bodyStr = typeof body === "string" ? body.trim() : "";
+  const descriptionRaw =
+    f["Description"] ?? f["description"] ?? f["Excerpt"] ?? f["excerpt"] ?? "";
+  const description =
+    typeof descriptionRaw === "string" && descriptionRaw.trim()
+      ? descriptionRaw.trim()
+      : bodyStr
+        ? bodyStr.split(/[.\n]/)[0].trim().slice(0, 160)
+        : "";
+
   return {
     id: String(f.id ?? record.id ?? ""),
-    title: String(g("Title", "title") ?? ""),
+    title: String(titleRaw),
     thumbnail: String(g("Thumbnail", "thumbnail") ?? ""),
     duration: String(g("Duration", "duration") ?? ""),
-    description: String(g("Description", "description") ?? ""),
+    description,
     videoUrl: typeof videoUrl === "string" && videoUrl.trim() ? videoUrl : undefined,
-    body: typeof body === "string" && body.trim() ? body : undefined,
+    body: bodyStr || undefined,
     promptIds,
     resources,
   };
