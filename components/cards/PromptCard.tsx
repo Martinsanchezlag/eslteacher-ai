@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { PromptCard as PromptCardType } from "@/types";
 
 // Curated Unsplash classroom photos per category
@@ -58,6 +59,7 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(prompt.likes);
   const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [imgSrc, setImgSrc] = useState(
     prompt.thumbnail || categoryImages[prompt.category] || ""
   );
@@ -127,22 +129,32 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
       className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-200 cursor-pointer border border-gray-100 flex flex-col"
     >
       {/* Photo thumbnail */}
-      <div className="relative h-44 overflow-hidden bg-gray-100 flex-shrink-0">
+      <div
+        className="relative h-44 overflow-hidden bg-gray-100 flex-shrink-0 cursor-zoom-in"
+        onMouseEnter={() => imgSrc && !imgFailed && setShowPreview(true)}
+        onMouseLeave={() => setShowPreview(false)}
+      >
         {imgSrc && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imgSrc}
             alt={prompt.category}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
             onError={handleImgError}
           />
         ) : (
-          // Gradient fallback only if all images fail
           <div
             className="w-full h-full flex items-center justify-center"
             style={{ background: "linear-gradient(135deg, #112C70 0%, #5B56EB 100%)" }}
           >
             <span className="text-5xl">📚</span>
+          </div>
+        )}
+
+        {/* Hover zoom hint */}
+        {imgSrc && !imgFailed && (
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 bg-black/50 text-white text-xs px-2 py-1 rounded-lg pointer-events-none transition-opacity">
+            🔍 Preview
           </div>
         )}
 
@@ -235,5 +247,29 @@ export default function PromptCard({ prompt, onClick }: PromptCardProps) {
         </div>
       </div>
     </div>
+
+      {/* Full-size image preview portal — appears on hover */}
+      {showPreview && imgSrc && !imgFailed && typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+            {/* Subtle backdrop */}
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+            {/* Preview card */}
+            <div className="relative z-10 max-w-lg w-full mx-4 rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imgSrc}
+                alt={prompt.title}
+                className="w-full h-auto object-contain max-h-[70vh]"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                <p className="text-white font-semibold text-sm">{prompt.title}</p>
+                <p className="text-white/70 text-xs mt-0.5">{prompt.category} · {prompt.level}</p>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
   );
 }
