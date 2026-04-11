@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Banner, PromptCard } from "@/types";
 
 interface FeaturedBannersProps {
@@ -10,24 +10,27 @@ interface FeaturedBannersProps {
 }
 
 const tagStyles: Record<string, string> = {
-  cyan:   "bg-cyan-300/30 text-cyan-100 border border-cyan-300/40",
-  purple: "bg-purple-300/30 text-purple-100 border border-purple-300/40",
-  green:  "bg-green-300/30 text-green-100 border border-green-300/40",
-  blue:   "bg-blue-300/30 text-blue-100 border border-blue-300/40",
-  orange: "bg-orange-300/30 text-orange-100 border border-orange-300/40",
+  cyan:   "bg-cyan-400/25 text-cyan-100 border border-cyan-300/40",
+  purple: "bg-purple-400/25 text-purple-100 border border-purple-300/40",
+  green:  "bg-emerald-400/25 text-emerald-100 border border-emerald-300/40",
+  blue:   "bg-blue-400/25 text-blue-100 border border-blue-300/40",
+  orange: "bg-orange-400/25 text-orange-100 border border-orange-300/40",
 };
 
 export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [] }: FeaturedBannersProps) {
   const [current, setCurrent] = useState(0);
-  const [fading, setFading] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [showArrows, setShowArrows] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const goTo = useCallback((index: number) => {
-    setFading(true);
+    if (transitioning) return;
+    setTransitioning(true);
     setTimeout(() => {
       setCurrent(index);
-      setFading(false);
-    }, 250);
-  }, []);
+      setTransitioning(false);
+    }, 350);
+  }, [transitioning]);
 
   const next = useCallback(() => {
     goTo((current + 1) % banners.length);
@@ -37,12 +40,17 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
     goTo((current - 1 + banners.length) % banners.length);
   }, [current, banners.length, goTo]);
 
-  // Auto-advance every 6 seconds
-  useEffect(() => {
+  // Auto-advance every 6 s; reset timer on manual nav
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     if (banners.length <= 1) return;
-    const timer = setInterval(next, 6000);
-    return () => clearInterval(timer);
+    timerRef.current = setInterval(next, 6000);
   }, [next, banners.length]);
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [resetTimer]);
 
   if (banners.length === 0) return null;
 
@@ -50,7 +58,6 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
   const tagClass = tagStyles[banner.tagColor] ?? tagStyles.cyan;
 
   function handleCtaClick(e: React.MouseEvent) {
-    // If this banner links to a specific prompt, open the modal instead of navigating
     if (banner.promptId && onPromptClick) {
       e.preventDefault();
       const target = allPrompts.find((p) => p.id === banner.promptId);
@@ -58,70 +65,82 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
     }
   }
 
+  function handleManualNav(fn: () => void) {
+    fn();
+    resetTimer();
+  }
+
   return (
-    <section className="mb-8">
-      <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: "200px" }}>
-
-        {/* Background photo (optional) */}
-        {banner.backgroundImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={banner.backgroundImage}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
-            style={{ opacity: fading ? 0 : 1 }}
-          />
-        )}
-
-        {/* Dark base overlay — only when a photo is present, ensures text is always readable */}
-        {banner.backgroundImage && (
+    <section className="mb-10">
+      <div
+        className="relative rounded-2xl overflow-hidden shadow-xl cursor-pointer group"
+        style={{ height: "clamp(260px, 38vw, 420px)" }}
+        onMouseEnter={() => setShowArrows(true)}
+        onMouseLeave={() => setShowArrows(false)}
+      >
+        {/* ── Slides (stack + crossfade) ───────────────────────────────────── */}
+        {banners.map((b, i) => (
           <div
-            className="absolute inset-0 transition-opacity duration-500"
-            style={{ background: "rgba(10,35,83,0.62)", opacity: fading ? 0 : 1 }}
-          />
-        )}
+            key={b.id}
+            className="absolute inset-0 transition-opacity duration-500 ease-in-out"
+            style={{ opacity: i === current && !transitioning ? 1 : 0, zIndex: i === current ? 1 : 0 }}
+          >
+            {/* Photo */}
+            {b.backgroundImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={b.backgroundImage}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 w-full h-full object-cover object-center"
+              />
+            ) : (
+              /* Gradient-only fallback */
+              <div
+                className="absolute inset-0"
+                style={{ background: `linear-gradient(${b.gradient})` }}
+              />
+            )}
 
-        {/* Gradient — full background when no photo, or a colour-tint overlay on top of the dark layer */}
+            {/* Bottom-up scrim — always present, creates readable text zone */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+
+            {/* Optional colour tint for branded feel */}
+            {b.backgroundImage && (
+              <div
+                className="absolute inset-0 mix-blend-multiply opacity-40"
+                style={{ background: `linear-gradient(${b.gradient})` }}
+              />
+            )}
+          </div>
+        ))}
+
+        {/* ── Content — bottom-left anchored ───────────────────────────────── */}
         <div
-          className="absolute inset-0 transition-opacity duration-500"
-          style={{
-            background: `linear-gradient(${banner.gradient})`,
-            opacity: fading ? 0 : banner.backgroundImage ? 0.55 : 1,
-          }}
-        />
-
-        {/* Decorative circles */}
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white/5 -translate-y-20 translate-x-20 pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-48 h-48 rounded-full bg-white/5 translate-y-16 pointer-events-none" />
-
-        {/* Content */}
-        <div
-          className="relative z-10 flex flex-row items-center gap-4 p-5 sm:p-7 lg:p-10 transition-opacity duration-250"
-          style={{ opacity: fading ? 0 : 1 }}
+          className="absolute inset-0 z-10 flex flex-col justify-end p-5 sm:p-8 lg:p-10 transition-opacity duration-350"
+          style={{ opacity: transitioning ? 0 : 1 }}
         >
-          {/* Emoji — hidden on very small phones */}
-          <div className="hidden sm:block text-5xl lg:text-7xl flex-shrink-0 select-none">{banner.emoji}</div>
-
-          {/* Text */}
-          <div className="flex-1 text-center lg:text-left">
-            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-2 ${tagClass}`}>
+          <div className="max-w-2xl">
+            {/* Tag pill */}
+            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-3 backdrop-blur-sm ${tagClass}`}>
               {banner.tag}
             </span>
-            <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-extrabold text-white leading-snug mb-1.5">
+
+            {/* Title */}
+            <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-white leading-tight mb-3 drop-shadow-md">
               {banner.title}
             </h2>
-            <p className="text-white/75 text-xs sm:text-sm lg:text-base leading-relaxed max-w-2xl hidden sm:block">
+
+            {/* Description — hidden on small screens */}
+            <p className="hidden sm:block text-white/75 text-sm lg:text-base leading-relaxed mb-5 max-w-xl">
               {banner.description}
             </p>
-          </div>
 
-          {/* CTA */}
-          <div className="flex-shrink-0">
+            {/* CTA */}
             <a
-              href={banner.promptId ? "#prompts" : banner.ctaUrl}
+              href={banner.promptId ? "#" : banner.ctaUrl}
               onClick={handleCtaClick}
-              className="inline-flex items-center gap-2 bg-white text-primary font-bold px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl hover:bg-cyan hover:text-navy transition-all duration-200 shadow-md text-sm whitespace-nowrap"
+              className="inline-flex items-center gap-2 bg-white text-primary font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-cyan hover:text-primary-dark transition-all duration-200 shadow-lg"
             >
               {banner.ctaText}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,12 +150,12 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
           </div>
         </div>
 
-        {/* Prev / Next arrows */}
+        {/* ── Prev / Next arrows — appear on hover ─────────────────────────── */}
         {banners.length > 1 && (
           <>
             <button
-              onClick={prev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/15 hover:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition-all z-20"
+              onClick={(e) => { e.stopPropagation(); handleManualNav(prev); }}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/65 backdrop-blur-sm text-white w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${showArrows ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"}`}
               aria-label="Previous"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,8 +163,8 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
               </svg>
             </button>
             <button
-              onClick={next}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/15 hover:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition-all z-20"
+              onClick={(e) => { e.stopPropagation(); handleManualNav(next); }}
+              className={`absolute right-3 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/65 backdrop-blur-sm text-white w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${showArrows ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"}`}
               aria-label="Next"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,22 +174,40 @@ export default function FeaturedBanners({ banners, onPromptClick, allPrompts = [
           </>
         )}
 
-        {/* Dot indicators */}
+        {/* ── Dot indicators — bottom-right ────────────────────────────────── */}
         {banners.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+          <div className="absolute bottom-4 right-5 z-20 flex gap-1.5 items-center">
             {banners.map((_, i) => (
               <button
                 key={i}
-                onClick={() => goTo(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  i === current ? "bg-white w-6" : "bg-white/40 w-2 hover:bg-white/60"
+                onClick={() => handleManualNav(() => goTo(i))}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === current ? "bg-white w-6" : "bg-white/40 w-1.5 hover:bg-white/70"
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
             ))}
           </div>
         )}
+
+        {/* ── Progress bar — thin auto-advance indicator ───────────────────── */}
+        {banners.length > 1 && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-20">
+            <div
+              key={current}
+              className="h-full bg-white/50 origin-left"
+              style={{ animation: "progressBar 6s linear forwards" }}
+            />
+          </div>
+        )}
       </div>
+
+      <style>{`
+        @keyframes progressBar {
+          from { width: 0% }
+          to   { width: 100% }
+        }
+      `}</style>
     </section>
   );
 }
