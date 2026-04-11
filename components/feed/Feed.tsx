@@ -16,6 +16,43 @@ interface FeedProps {
   onPromptClick: (prompt: PromptCardType) => void;
 }
 
+function SectionHeader({
+  title,
+  icon,
+  count,
+  href,
+  linkLabel,
+}: {
+  title: string;
+  icon: string;
+  count?: number;
+  href: string;
+  linkLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{icon}</span>
+        <h2 className="text-base font-bold text-gray-900">{title}</h2>
+        {count !== undefined && (
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+            {count}
+          </span>
+        )}
+      </div>
+      <a
+        href={href}
+        className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+      >
+        {linkLabel}
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    </div>
+  );
+}
+
 export default function Feed({
   prompts,
   tutorials,
@@ -24,13 +61,14 @@ export default function Feed({
   activeCategory,
   onPromptClick,
 }: FeedProps) {
-  const filteredPrompts = useMemo(() => {
-    let result = prompts;
+  const isFiltering = searchQuery.trim() || (activeCategory && activeCategory !== "All");
 
+  const filteredPrompts = useMemo(() => {
+    if (!isFiltering) return prompts;
+    let result = prompts;
     if (activeCategory && activeCategory !== "All") {
       result = result.filter((p) => p.category === activeCategory);
     }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -42,12 +80,10 @@ export default function Feed({
           p.level.toLowerCase().includes(q)
       );
     }
-
     return result;
-  }, [prompts, searchQuery, activeCategory]);
+  }, [prompts, searchQuery, activeCategory, isFiltering]);
 
-  const isFiltering = searchQuery.trim() || (activeCategory && activeCategory !== "All");
-
+  // ── Filtered / search view ───────────────────────────────────────────────────
   if (isFiltering) {
     if (filteredPrompts.length === 0) {
       return (
@@ -55,119 +91,112 @@ export default function Feed({
           <div className="text-5xl mb-4">🔍</div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">No prompts found</h3>
           <p className="text-sm text-gray-400 max-w-xs">
-            Try a different search term or clear the filter to browse all prompts.
+            Try a different search term or{" "}
+            <a href="/prompts" className="text-primary font-semibold hover:underline">
+              browse all prompts
+            </a>
+            .
           </p>
         </div>
       );
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {filteredPrompts.map((prompt) => (
-          <PromptCard key={prompt.id} prompt={prompt} onClick={onPromptClick} />
-        ))}
+      <div>
+        <p className="text-xs text-gray-400 mb-4">
+          {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? "s" : ""}
+          {activeCategory !== "All" && <span className="text-primary font-medium ml-1">in {activeCategory}</span>}
+          {searchQuery && <span className="text-primary font-medium ml-1">matching &ldquo;{searchQuery}&rdquo;</span>}
+          <a href="/prompts" className="ml-2 text-gray-400 hover:text-primary underline">See full library →</a>
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filteredPrompts.map((prompt) => (
+            <PromptCard key={prompt.id} prompt={prompt} onClick={onPromptClick} />
+          ))}
+        </div>
       </div>
     );
   }
 
-  // Default mixed feed layout
-  const feedItems: React.ReactNode[] = [];
-  let promptIndex = 0;
-  let tutorialIndex = 0;
-  let newsIndex = 0;
-
-  // Beginner card — full width
-  feedItems.push(
-    <div key="beginner" className="col-span-full">
-      <BeginnerCard />
-    </div>
-  );
-
-  // 3 prompt cards
-  for (let i = 0; i < 3 && promptIndex < prompts.length; i++, promptIndex++) {
-    feedItems.push(
-      <PromptCard key={`p-${prompts[promptIndex].id}-1`} prompt={prompts[promptIndex]} onClick={onPromptClick} />
-    );
-  }
-
-  // 1 tutorial card — spans 1 column
-  if (tutorialIndex < tutorials.length) {
-    feedItems.push(
-      <TutorialCard key={`t-${tutorials[tutorialIndex].id}-1`} tutorial={tutorials[tutorialIndex]} />
-    );
-    tutorialIndex++;
-  }
-
-  // 3 prompt cards
-  for (let i = 0; i < 3 && promptIndex < prompts.length; i++, promptIndex++) {
-    feedItems.push(
-      <PromptCard key={`p-${prompts[promptIndex].id}-2`} prompt={prompts[promptIndex]} onClick={onPromptClick} />
-    );
-  }
-
-  // 1 news card
-  if (newsIndex < news.length) {
-    feedItems.push(
-      <NewsCard key={`n-${news[newsIndex].id}-1`} article={news[newsIndex]} />
-    );
-    newsIndex++;
-  }
-
-  // 3 prompt cards
-  for (let i = 0; i < 3 && promptIndex < prompts.length; i++, promptIndex++) {
-    feedItems.push(
-      <PromptCard key={`p-${prompts[promptIndex].id}-3`} prompt={prompts[promptIndex]} onClick={onPromptClick} />
-    );
-  }
-
-  // 1 tutorial card
-  if (tutorialIndex < tutorials.length) {
-    feedItems.push(
-      <TutorialCard key={`t-${tutorials[tutorialIndex].id}-2`} tutorial={tutorials[tutorialIndex]} />
-    );
-    tutorialIndex++;
-  }
-
-  // 3 more prompt cards
-  for (let i = 0; i < 3 && promptIndex < prompts.length; i++, promptIndex++) {
-    feedItems.push(
-      <PromptCard key={`p-${prompts[promptIndex].id}-4`} prompt={prompts[promptIndex]} onClick={onPromptClick} />
-    );
-  }
-
-  // 1 news card
-  if (newsIndex < news.length) {
-    feedItems.push(
-      <NewsCard key={`n-${news[newsIndex].id}-2`} article={news[newsIndex]} />
-    );
-    newsIndex++;
-  }
-
-  // Remaining prompts
-  while (promptIndex < prompts.length) {
-    feedItems.push(
-      <PromptCard key={`p-${prompts[promptIndex].id}-5`} prompt={prompts[promptIndex]} onClick={onPromptClick} />
-    );
-    promptIndex++;
-  }
-
-  // Any remaining tutorials and news
-  while (tutorialIndex < tutorials.length) {
-    feedItems.push(
-      <TutorialCard key={`t-${tutorials[tutorialIndex].id}-3`} tutorial={tutorials[tutorialIndex]} />
-    );
-    tutorialIndex++;
-  }
-  while (newsIndex < news.length) {
-    feedItems.push(
-      <NewsCard key={`n-${news[newsIndex].id}-3`} article={news[newsIndex]} />
-    );
-    newsIndex++;
-  }
+  // ── Default hub layout ───────────────────────────────────────────────────────
+  const latestPrompts = prompts.slice(0, 8);        // newest 8
+  const latestTutorials = tutorials.slice(0, 4);    // newest 4
+  const latestNews = news.slice(0, 3);              // newest 3
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {feedItems}
+    <div className="space-y-12">
+
+      {/* Beginner card */}
+      <BeginnerCard />
+
+      {/* ── Latest Prompts ──────────────────────────────────────────────────── */}
+      <section>
+        <SectionHeader
+          title="Latest Prompts"
+          icon="✨"
+          count={prompts.length}
+          href="/prompts"
+          linkLabel="Browse all"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {latestPrompts.map((prompt) => (
+            <PromptCard key={prompt.id} prompt={prompt} onClick={onPromptClick} />
+          ))}
+        </div>
+        {prompts.length > 8 && (
+          <div className="mt-5 text-center">
+            <a
+              href="/prompts"
+              className="inline-flex items-center gap-2 bg-primary/8 text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-primary hover:text-white transition-all duration-200"
+            >
+              See all {prompts.length} prompts
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+        )}
+      </section>
+
+      {/* ── Latest Tutorials ────────────────────────────────────────────────── */}
+      {latestTutorials.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Latest Tutorials"
+            icon="🎬"
+            count={tutorials.length}
+            href="/tutorials"
+            linkLabel="See all"
+          />
+          {/* Horizontally scrollable on mobile, 2-col grid on sm+ */}
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible">
+            {latestTutorials.map((tutorial) => (
+              <div key={tutorial.id} className="min-w-[280px] sm:min-w-0">
+                <TutorialCard tutorial={tutorial} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── AI in ESL ───────────────────────────────────────────────────────── */}
+      {latestNews.length > 0 && (
+        <section>
+          <SectionHeader
+            title="AI in ESL"
+            icon="📰"
+            count={news.length}
+            href="/ai-in-elt"
+            linkLabel="See all"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {latestNews.map((article) => (
+              <NewsCard key={article.id} article={article} />
+            ))}
+          </div>
+        </section>
+      )}
+
     </div>
   );
 }

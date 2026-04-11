@@ -38,6 +38,14 @@ async function fetchAllRecords(tableName: string): Promise<Record<string, unknow
     offset = data.offset;
   } while (offset);
 
+  // Sort newest-first using Airtable's built-in createdTime metadata
+  allRecords.sort((a, b) => {
+    const ta = a.createdTime as string | undefined;
+    const tb = b.createdTime as string | undefined;
+    if (!ta || !tb) return 0;
+    return new Date(tb).getTime() - new Date(ta).getTime();
+  });
+
   return allRecords;
 }
 

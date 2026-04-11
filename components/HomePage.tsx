@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { PromptCard as PromptCardType, TutorialCard, NewsCard, Banner, CustomGpt } from "@/types";
-import { categories } from "@/data/categories";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-import CategoryPill from "@/components/ui/CategoryPill";
 import PromptModal from "@/components/ui/PromptModal";
 import FeaturedBanners from "@/components/ui/FeaturedBanners";
 import CustomGptCard from "@/components/cards/CustomGptCard";
@@ -92,20 +90,6 @@ export default function HomePage({ prompts, tutorials, news, banners, customGpts
             </div>
           </section>
         )}
-
-        {/* Category pills */}
-        <section className="mb-6 -mx-4 sm:mx-0">
-          <div className="flex items-center gap-2.5 overflow-x-auto pills-scroll px-4 sm:px-0 pb-1">
-            {categories.map((cat) => (
-              <CategoryPill
-                key={cat}
-                label={cat}
-                active={activeCategory === cat && !searchQuery}
-                onClick={() => handleCategoryClick(cat)}
-              />
-            ))}
-          </div>
-        </section>
 
         {/* Main content: feed + sidebar */}
         <section className="flex gap-6 items-start">
