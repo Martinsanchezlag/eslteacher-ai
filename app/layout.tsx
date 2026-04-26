@@ -51,6 +51,9 @@ export const metadata: Metadata = {
     description: "Ready-to-use AI prompts for ESL teachers. Browse, copy, and use in seconds.",
     images: ["/logo.png"],
   },
+  verification: {
+    google: "XE58bdRbtyLrDZ96W0COGSTQR4GmJwD3mLaw2Acd53U",
+  },
 };
 
 export default function RootLayout({
